@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from utils.database import is_configured, fetch_ventas, fetch_periodos
 from utils.charts import summary_table, fmt_currency
 from utils.ui import (DARK_CSS, dark_chart, kpi_html, section_title, page_header,
-                      filter_title, styled_table, minimal_sidebar, period_pills, load_periods, CHART_COLORS)
+                      filter_title, styled_table, explain, minimal_sidebar, period_pills, load_periods, CHART_COLORS)
 
 st.set_page_config(page_title='Producto · ABAD', page_icon='📦',
                    layout='wide', initial_sidebar_state='auto')
@@ -77,6 +77,13 @@ with c2: st.markdown(kpi_html(f'{margen:.2f}%','📈 Margen %',val_color='#4DB6A
 with c3: st.markdown(kpi_html(f'{uds:,.0f}','📦 Unidades',val_color='#80DEEA'), unsafe_allow_html=True)
 with c4: st.markdown(kpi_html(str(df['referencia'].nunique()),'🔖 Referencias',val_color='#FFCC80'), unsafe_allow_html=True)
 
+explain("""
+- **💰 Ventas** — `valor_subtotal` sumado de los productos filtrados.
+- **📈 Margen %** — `(Ventas − Costo) ÷ Ventas × 100`.
+- **📦 Unidades** — `cantidad` total vendida.
+- **🔖 Referencias** — Número de productos (referencias) distintos vendidos.
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 
 # ── Por familia ───────────────────────────────────────────────────────────────
@@ -108,6 +115,13 @@ with col_r:
     fig2.update_layout(coloraxis_showscale=False)
     st.plotly_chart(dark_chart(fig2,400),use_container_width=True)
 
+explain("""
+- **Ventas por Familia** (izquierda) — Venta de cada familia de producto; **color = margen %**.
+- **Margen % por Familia** (derecha) — Margen `(Ventas−Costo)÷Ventas` ordenado, escala
+rojo→verde. Identifica familias muy vendidas pero de bajo margen, o viceversa.
+La familia se obtiene del cruce con la tabla ITEM por `referencia`.
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 st.markdown(section_title(f'Top {top_n} Productos'), unsafe_allow_html=True)
 prod = (df.groupby(['referencia','desc_item','familia'])
@@ -122,6 +136,11 @@ fig3 = px.bar(prod.sort_values('venta'),x='venta',y='desc_item',orientation='h',
 fig3.update_traces(texttemplate='$%{x:,.0f}',textposition='outside',textfont=dict(color='white'))
 fig3.update_layout(showlegend=True,legend=dict(font=dict(color='white')))
 st.plotly_chart(dark_chart(fig3,max(420,top_n*22)),use_container_width=True)
+explain("""
+**Top N Productos** — Los productos de mayor venta (ajusta N con el control de arriba).
+Cada barra es un producto y **el color indica su familia**. La tabla siguiente trae el
+detalle con Margen `(Ventas−Costo)÷Ventas` y Part % sobre la venta total.
+""")
 
 st.markdown('---')
 disp = summary_table(prod,money_cols=['venta','costo'],pct_cols=['margen_%','participacion'])
@@ -131,6 +150,12 @@ disp = disp.rename(columns={'referencia':'Ref','desc_item':'Descripción','famil
 styled_table(disp, max_height=460)
 st.download_button('⬇️ Descargar CSV',prod.to_csv(index=False).encode('utf-8'),
                    f'productos_{label.replace(" ","_")}.csv','text/csv')
+
+explain("""
+Al elegir una **familia** se muestra qué **clientes** la compraron (`razon_social`),
+qué **productos** de esa familia se vendieron, y el cruce **Cliente → Producto**.
+Sirve para saber a quién venderle más de cada línea.
+""")
 
 # ── DETALLE: Clientes que compraron de una Familia ────────────────────────────
 st.markdown('---')

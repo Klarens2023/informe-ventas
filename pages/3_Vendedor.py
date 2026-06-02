@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from utils.database import is_configured, fetch_ventas, fetch_periodos
 from utils.charts import summary_table, fmt_currency
 from utils.ui import (DARK_CSS, dark_chart, kpi_html, section_title, page_header,
-                      filter_title, styled_table, minimal_sidebar, period_pills, load_periods, TEAL)
+                      filter_title, styled_table, explain, minimal_sidebar, period_pills, load_periods, TEAL)
 
 st.set_page_config(page_title='Vendedor · ABAD', page_icon='👤',
                    layout='wide', initial_sidebar_state='auto')
@@ -38,25 +38,47 @@ for c in ['valor_subtotal','costo_promedio_total','cantidad','valor_descuentos']
 if 'co' in df_all.columns:
     df_all['co'] = pd.to_numeric(df_all['co'], errors='coerce').fillna(0).astype(int)
 
-# ── Filtros INLINE ────────────────────────────────────────────────────────────
-co_desc_map  = df_all.groupby('co')['desc_co'].first().to_dict()
-cos_disp     = sorted(df_all['co'].unique().tolist())
-canales_disp = sorted(df_all['canal_ventas'].unique().tolist())
+# ── Segmento de ventas (vendedores Principal vs Punto de Venta) ───────────────
+# El CO 001 (Principal) y los puntos de venta (CO 002-006) son tipos de venta
+# distintos; se separan para no comparar vendedores de canales no comparables.
+SEG_PRINCIPAL = '🏭 Principal (CO 001)'
+SEG_PUNTOS    = '🏬 Puntos de Venta (CO 002-006)'
+SEG_TODOS     = '📋 Todos (sin separar)'
+segmento = st.radio('🔀 Segmento de ventas', [SEG_PRINCIPAL, SEG_PUNTOS, SEG_TODOS],
+                    horizontal=True, key='seg_vendedor',
+                    help='El Principal y los Puntos de Venta son canales distintos; '
+                         'se analizan por separado para una comparación justa.')
+
+df_seg = df_all.copy()
+if segmento == SEG_PRINCIPAL:
+    df_seg = df_seg[df_seg['co'] == 1]
+elif segmento == SEG_PUNTOS:
+    df_seg = df_seg[df_seg['co'].isin([2, 3, 4, 5, 6])]
+
+if df_seg.empty:
+    st.warning(f'No hay datos para el segmento **{segmento}** en el período seleccionado.')
+    st.stop()
+
+# ── Filtros INLINE (operan dentro del segmento elegido) ───────────────────────
+co_desc_map  = df_seg.groupby('co')['desc_co'].first().to_dict()
+cos_disp     = sorted(df_seg['co'].unique().tolist())
+canales_disp = sorted(df_seg['canal_ventas'].unique().tolist())
 
 fc1, fc2 = st.columns(2)
 with fc1:
     filtro_co = st.multiselect('🏢 Centro de Operación (CO)', cos_disp, default=[],
                                 format_func=lambda x: f'{x:03d} – {co_desc_map.get(x, str(x))}',
-                                help='Vacío = todos')
+                                help='Vacío = todos los del segmento')
 with fc2:
     filtro_canal = st.multiselect('🏪 Canal de Venta', canales_disp, default=[], help='Vacío = todos')
 
-df = df_all.copy()
+df = df_seg.copy()
 if filtro_co:    df = df[df['co'].isin(filtro_co)]
 if filtro_canal: df = df[df['canal_ventas'].isin(filtro_canal)]
 
 filter_title({
-    'Período': sels,
+    'Período':  sels,
+    'Segmento': segmento.split(' ', 1)[1] if ' ' in segmento else segmento,
     'CO':     [f'{c:03d} – {co_desc_map.get(c, "")}' for c in filtro_co] if filtro_co else None,
     'Canal':  filtro_canal,
 })
@@ -80,6 +102,14 @@ with c3: st.markdown(kpi_html(f'{len(df):,}','🔢 Transacciones',val_color='#80
 with c4: st.markdown(kpi_html(fmt_currency(descto),'🎁 Descuentos',val_color='#CE93D8'), unsafe_allow_html=True)
 with c5: st.markdown(kpi_html(str(n_vend),'👤 Vendedores',val_color='#FFCC80'), unsafe_allow_html=True)
 
+explain("""
+- **💰 Ventas Totales** — `valor_subtotal` sumado de los vendedores filtrados.
+- **📈 Margen %** — `(Ventas − Costo) ÷ Ventas × 100`.
+- **🔢 Transacciones** — líneas de factura.
+- **🎁 Descuentos** — `valor_descuentos` aplicado.
+- **👤 Vendedores** — número de vendedores distintos con ventas.
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 
 # ── Agrupación ────────────────────────────────────────────────────────────────
@@ -92,31 +122,46 @@ vend['margen_%']      = ((vend['venta']-vend['costo'])/vend['venta']*100).round(
 vend['participacion'] = (vend['venta']/vend['venta'].sum()*100).round(2)
 vend = vend.sort_values('venta', ascending=False)
 
-col_l, col_r = st.columns([2,1])
-with col_l:
-    st.markdown(section_title('Top 15 Vendedores por Venta'), unsafe_allow_html=True)
-    top15 = vend.head(15).sort_values('venta', ascending=True)
-    fig = go.Figure(go.Bar(x=top15['venta'],y=top15['nombre_vendedor'],orientation='h',
-        text=top15['venta'].apply(fmt_currency),textposition='outside',
-        marker=dict(color=top15['margen_%'],
-                    colorscale=[[0,'#1565C0'],[0.5,'#00838F'],[1,'#4DB6AC']],showscale=True,
-                    colorbar=dict(title='Margen %',thickness=10,tickfont=dict(color='white'),titlefont=dict(color='white')))))
-    st.plotly_chart(dark_chart(fig,460),use_container_width=True)
+# Top 15 a todo el ancho
+st.markdown(section_title('Top 15 Vendedores por Venta'), unsafe_allow_html=True)
+top15 = vend.head(15).sort_values('venta', ascending=True)
+fig = go.Figure(go.Bar(x=top15['venta'],y=top15['nombre_vendedor'],orientation='h',
+    text=top15['venta'].apply(fmt_currency),textposition='outside',
+    marker=dict(color=top15['margen_%'],
+                colorscale=[[0,'#1565C0'],[0.5,'#00838F'],[1,'#4DB6AC']],showscale=True,
+                colorbar=dict(title='Margen %',thickness=10,tickfont=dict(color='white'),titlefont=dict(color='white')))))
+st.plotly_chart(dark_chart(fig,460),use_container_width=True)
+explain("""
+**Top 15 Vendedores por Venta** — Los vendedores de mayor `valor_subtotal`;
+**el color de la barra indica su margen %** `(Ventas−Costo)÷Ventas`.
+""")
 
-with col_r:
+# Dos tablas lado a lado (balanceadas)
+st.markdown('<br>', unsafe_allow_html=True)
+col_l, col_r = st.columns(2)
+with col_l:
     st.markdown(section_title('Top 10 por Margen %'), unsafe_allow_html=True)
     top_m = vend[vend['venta']>0].nlargest(10,'margen_%')[['nombre_vendedor','margen_%','venta']].copy()
     top_m['margen_%'] = top_m['margen_%'].apply(lambda x: f'{x:.2f}%')
-    top_m['venta']    = top_m['venta'].apply(lambda x: f'${x:,.0f}')
+    top_m['venta']    = top_m['venta'].apply(fmt_currency)
     styled_table(top_m.rename(columns={'nombre_vendedor':'Vendedor','margen_%':'Margen','venta':'Ventas'}))
+    explain("""
+**Top 10 por Margen %** — Mejores en rentabilidad relativa `(Ventas−Costo)÷Ventas`,
+no en volumen. Un vendedor puede vender poco pero con muy buen margen.
+""")
 
-    st.markdown('<br>', unsafe_allow_html=True)
+with col_r:
     st.markdown(section_title('Mayores Descuentos'), unsafe_allow_html=True)
     top_d = vend.nlargest(8,'descuento')[['nombre_vendedor','descuento','venta']].copy()
-    top_d['desc_%'] = (top_d['descuento']/top_d['venta']*100).round(1).apply(lambda x: f'{x}%')
-    top_d['descuento'] = top_d['descuento'].apply(lambda x: f'${x:,.0f}')
+    top_d['desc_%']    = (top_d['descuento']/top_d['venta']*100).round(1).apply(lambda x: f'{x}%')
+    top_d['descuento'] = top_d['descuento'].apply(fmt_currency)
+    top_d['venta']     = top_d['venta'].apply(fmt_currency)
     styled_table(top_d.rename(columns={'nombre_vendedor':'Vendedor','descuento':'Descuento',
                                         'venta':'Ventas','desc_%':'Desc%'}))
+    explain("""
+**Mayores Descuentos** — Quiénes aplican más descuento en pesos.
+**Desc%** = `Descuento ÷ Ventas × 100` — útil para detectar descuentos excesivos.
+""")
 
 st.markdown('---')
 st.markdown(section_title('Tabla Completa de Vendedores'), unsafe_allow_html=True)
@@ -125,6 +170,11 @@ disp = disp.rename(columns={'vendedor':'Cód','nombre_vendedor':'Vendedor','vent
                              'cantidad':'Cantidad','transacciones':'Trans.','descuento':'Descuento',
                              'margen_%':'Margen','participacion':'Part %'})
 styled_table(disp, max_height=460)
+explain("""
+**Tabla Completa de Vendedores** — Una fila por vendedor con: Cód, Ventas, Costo,
+Cantidad, Trans. (líneas), Descuento, **Margen** `(Ventas−Costo)÷Ventas` y
+**Part %** (aporte del vendedor a la venta total).
+""")
 st.download_button('⬇️ Descargar CSV',vend.to_csv(index=False).encode('utf-8'),
                    f'vendedor_{label.replace(" ","_")}.csv','text/csv')
 
@@ -135,6 +185,12 @@ st.markdown(section_title('🔍 Detalle por Vendedor: Clientes e Ítems'), unsaf
 vend_opts = (df.groupby('nombre_vendedor')['valor_subtotal'].sum()
                .sort_values(ascending=False).index.tolist())
 sel_vend = st.selectbox('👤 Selecciona un vendedor para ver su detalle', vend_opts)
+
+explain("""
+Al elegir un vendedor se muestra su detalle: **Clientes** a los que vendió (`razon_social`),
+los **Ítems** que vendió (`desc_item`) y el cruce **Cliente → Ítem**. Cada tabla trae
+Ventas, Costo, Cantidad, Descuento y Margen `(Ventas−Costo)÷Ventas`.
+""")
 
 dv = df[df['nombre_vendedor'] == sel_vend].copy()
 

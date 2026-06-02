@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from utils.database import is_configured, fetch_ventas, fetch_periodos
 from utils.charts import summary_table, fmt_currency
 from utils.ui import (DARK_CSS, dark_chart, kpi_html, section_title, page_header,
-                      filter_title, styled_table, minimal_sidebar, period_pills, load_periods, CHART_COLORS)
+                      filter_title, styled_table, explain, minimal_sidebar, period_pills, load_periods, CHART_COLORS)
 
 st.set_page_config(page_title='Venta Suero · ABAD', page_icon='🧴',
                    layout='wide', initial_sidebar_state='auto')
@@ -84,6 +84,15 @@ with c2: st.markdown(kpi_html(f'{margen:.2f}%','📈 Margen %',val_color='#4DB6A
 with c3: st.markdown(kpi_html(f'{kilos:,.1f}','⚖️ Kilos',val_color='#80DEEA'), unsafe_allow_html=True)
 with c4: st.markdown(kpi_html(f'{uds:,.0f}','📦 Unidades',val_color='#FFCC80'), unsafe_allow_html=True)
 with c5: st.markdown(kpi_html(fmt_currency(costo),'🏭 Costo',val_color='#EF9A9A'), unsafe_allow_html=True)
+
+explain("""
+Filtra solo los productos de **suero** (familia que contiene "suero").
+- **💰 Ventas Suero** — `valor_subtotal` de suero. **📈 Margen %** = `(Ventas−Costo)÷Ventas`.
+- **⚖️ Kilos** — `kilos_suero` = `cantidad × peso` de la referencia (tabla ITEM).
+- **📦 Unidades** — `cantidad`. **🏭 Costo** — `costo_promedio_total`.
+Más abajo: ventas por **canal** (color = margen %), **top productos** de suero, y el comparativo
+**Maquila vs Canal Normal** (separa las ventas cuyo canal contiene "MAQUILA").
+""")
 
 st.markdown('<br>', unsafe_allow_html=True)
 

@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from utils.database import is_configured, fetch_ventas, fetch_periodos
 from utils.charts import summary_table, fmt_currency
 from utils.ui import (DARK_CSS, dark_chart, kpi_html, section_title, page_header,
-                      filter_title, styled_table, minimal_sidebar, period_pills, load_periods, CHART_COLORS)
+                      filter_title, styled_table, explain, minimal_sidebar, period_pills, load_periods, CHART_COLORS)
 
 st.set_page_config(page_title='Márgenes · ABAD', page_icon='📈',
                    layout='wide', initial_sidebar_state='auto')
@@ -59,6 +59,13 @@ with c2: st.markdown(kpi_html(f'{margen:.2f}%','📈 Margen Neto %',val_color='#
 with c3: st.markdown(kpi_html(fmt_currency(rent),'💵 Rentabilidad $',val_color='#4CAF50'), unsafe_allow_html=True)
 with c4: st.markdown(kpi_html(fmt_currency(costo),'🏭 Costo Total',val_color='#EF9A9A'), unsafe_allow_html=True)
 
+explain("""
+Analiza la rentabilidad según la dimensión elegida arriba (**Familia / Canal / Centro de Operación**).
+- **💰 Ventas Totales** — `valor_subtotal`. **🏭 Costo Total** — `costo_promedio_total`.
+- **📈 Margen Neto %** — `(Ventas − Costo) ÷ Ventas × 100` (rentabilidad relativa).
+- **💵 Rentabilidad $** — `rentabilidad_plata` = `Ventas − Costo` (utilidad bruta en pesos).
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 
 # ── Agrupación ────────────────────────────────────────────────────────────────
@@ -92,6 +99,13 @@ with col_r:
                     colorscale=[[0,'#B71C1C'],[0.3,'#EF6C00'],[0.6,'#1565C0'],[1,'#4DB6AC']],
                     showscale=False),textfont=dict(color='white')))
     st.plotly_chart(dark_chart(fig2,h),use_container_width=True)
+
+explain("""
+- **Margen % por dimensión** (izquierda) — Margen relativo `(Ventas−Costo)÷Ventas`, escala rojo→verde.
+- **Rentabilidad $ por dimensión** (derecha) — Utilidad bruta en pesos `Ventas − Costo`.
+Un grupo puede tener **margen % alto pero poca rentabilidad $** (vende poco), o al revés.
+El **scatter** de abajo cruza ambas: tamaño = venta, eje X = ventas $, eje Y = margen %.
+""")
 
 # ── Scatter Venta vs Margen ────────────────────────────────────────────────────
 st.markdown('<br>', unsafe_allow_html=True)

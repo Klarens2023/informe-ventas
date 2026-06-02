@@ -530,6 +530,34 @@ div[data-testid="stPills"] button > span,
     transform:translateY(-1px);
 }
 
+/* ── Expander de explicación (ℹ️) — discreto ── */
+[data-testid="stExpander"]{
+    border:1px solid rgba(21,101,192,.22)!important;
+    border-radius:8px!important;
+    background:rgba(13,33,55,.4)!important;
+    margin:2px 0 12px 0!important;
+}
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] [data-testid="stExpanderToggleIcon"]{
+    color:#90CAF9!important;
+    font-size:.78rem!important;
+}
+[data-testid="stExpander"] summary:hover{color:#4DB6AC!important}
+[data-testid="stExpander"] p,
+[data-testid="stExpander"] li{
+    color:#cbd5e1!important;
+    font-size:.82rem!important;
+    line-height:1.5!important;
+}
+[data-testid="stExpander"] code{
+    background:rgba(245,127,23,.14)!important;
+    color:#FFD54F!important;
+    padding:1px 5px!important;
+    border-radius:4px!important;
+    font-size:.8rem!important;
+}
+[data-testid="stExpander"] strong{color:#e2e8f0!important}
+
 /* ── Alerts ── */
 .stAlert{border-radius:10px}
 
@@ -559,11 +587,35 @@ def dark_chart(fig: go.Figure, height: int = 380, hide_money_axis: str = None) -
         legend=dict(bgcolor='rgba(0,0,0,0)', font=dict(color=TEXT)),
         xaxis=dict(gridcolor='rgba(21,101,192,.14)', zerolinecolor='rgba(21,101,192,.2)'),
         yaxis=dict(gridcolor='rgba(21,101,192,.14)', zerolinecolor='rgba(21,101,192,.2)'),
+        separators=',.',   # decimal=',' miles='.' → formato colombiano (no B inglesa)
     )
 
     # Etiquetas exteriores nunca se recortan
     try:
         fig.update_traces(cliponaxis=False, selector=dict(type='bar'))
+    except Exception:
+        pass
+
+    # Tooltip de barras = mismo valor formateado que ya se muestra en la barra
+    # (evita la notación SI inglesa "B" = mil millones en los hovers).
+    try:
+        for tr in fig.data:
+            if getattr(tr, 'type', '') != 'bar':
+                continue
+            if getattr(tr, 'hovertemplate', None):
+                continue  # respetar hovertemplate ya personalizado
+            ori = getattr(tr, 'orientation', None)
+            cat = '%{y}' if ori == 'h' else '%{x}'
+            tt  = getattr(tr, 'texttemplate', None)
+            if tt:
+                val = tt
+            elif getattr(tr, 'text', None) is not None:
+                val = '%{text}'
+            else:
+                val = '%{x}' if ori == 'h' else '%{y}'
+            nm  = getattr(tr, 'name', None)
+            pre = f'<b>{nm}</b><br>' if nm else ''
+            tr.hovertemplate = f'{pre}{cat} : {val}<extra></extra>'
     except Exception:
         pass
 
@@ -622,6 +674,15 @@ def section_title(text: str) -> str:
     return (f'<div style="font-size:1rem;font-weight:700;color:#e2e8f0;'
             f'border-left:4px solid {TEAL};padding-left:10px;'
             f'margin:18px 0 10px 0">{text}</div>')
+
+
+def explain(texto: str, titulo: str = 'ℹ️ Qué muestra y cómo se calcula') -> None:
+    """
+    Desplegable discreto con la explicación de un gráfico/tabla:
+    qué representa cada dato y cómo se calcula.
+    """
+    with st.expander(titulo, expanded=False):
+        st.markdown(texto)
 
 
 def page_header(title: str, subtitle: str = '', badge: str = '') -> None:

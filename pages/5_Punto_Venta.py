@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from utils.database import is_configured, fetch_ventas, fetch_periodos
 from utils.charts import summary_table, fmt_currency, fmt_int_co
 from utils.ui import (DARK_CSS, dark_chart, kpi_html, section_title, page_header,
-                      filter_title, styled_table, minimal_sidebar, period_pills, load_periods, CHART_COLORS)
+                      filter_title, styled_table, explain, minimal_sidebar, period_pills, load_periods, CHART_COLORS)
 
 st.set_page_config(page_title='Puntos de Venta · ABAD', page_icon='🏬',
                    layout='wide', initial_sidebar_state='auto')
@@ -84,6 +84,14 @@ with c2: st.markdown(kpi_html(f'{margen:.2f}%','📈 Margen %',val_color='#4DB6A
 with c3: st.markdown(kpi_html(f'{uds:,.0f}','📦 Unidades',val_color='#80DEEA'), unsafe_allow_html=True)
 with c4: st.markdown(kpi_html(f'{len(df):,}','🔢 Transacciones',val_color='#FFCC80'), unsafe_allow_html=True)
 
+explain("""
+Solo incluye los **puntos de venta TPV** (CO 002 a 006).
+- **💰 Ventas PV** — `valor_subtotal` sumado de los TPV.
+- **📈 Margen %** — `(Ventas − Costo) ÷ Ventas × 100`.
+- **📦 Unidades** — `cantidad` vendida.
+- **🔢 Transacciones** — líneas de factura.
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 
 # ── Cards por CO ──────────────────────────────────────────────────────────────
@@ -110,6 +118,11 @@ for i, (_, row) in enumerate(co_df.iterrows()):
   <div style="font-size:.75rem;color:#607D8B">Part: {row['participacion']:.1f}%</div>
 </div>""", unsafe_allow_html=True)
 
+explain("""
+**Tarjetas por Punto de Venta** — Una tarjeta por TPV con su **venta total** (naranja),
+**Margen** `(Ventas−Costo)÷Ventas` y **Part %** (aporte del PV al total de los TPV).
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 
 col_l, col_r = st.columns([3,2])
@@ -135,6 +148,11 @@ with col_r:
     else:
         st.info('Sin datos de familia.')
 
+explain("""
+- **Ventas por Punto de Venta** (izquierda) — Venta de cada TPV; **color = margen %**.
+- **Composición por Familia** (derecha) — Dona con el % de venta por familia dentro de los TPV.
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 st.markdown(section_title('Top 15 Productos en Puntos de Venta'), unsafe_allow_html=True)
 prod = (df.groupby(['desc_item','familia'])
@@ -147,6 +165,10 @@ fig3 = px.bar(prod.sort_values('venta'),x='venta',y='desc_item',orientation='h',
 fig3.update_traces(texttemplate='$%{x:,.0f}',textposition='outside',textfont=dict(color='white'))
 fig3.update_layout(showlegend=True,legend=dict(font=dict(color='white')))
 st.plotly_chart(dark_chart(fig3,460),use_container_width=True)
+explain("""
+**Top 15 Productos en TPV** — Los productos más vendidos en los puntos de venta;
+cada barra es un producto y **el color indica su familia**.
+""")
 
 st.markdown('---')
 disp = summary_table(co_df,money_cols=['venta','costo'],pct_cols=['margen_%','participacion'])
@@ -158,6 +180,13 @@ styled_table(disp)
 # ── DETALLE DIARIO POR PUNTO DE VENTA (pivote fecha × PV) ─────────────────────
 st.markdown('---')
 st.markdown(section_title('📅 Detalle Diario por Punto de Venta'), unsafe_allow_html=True)
+
+explain("""
+**Tabla pivote día por día**: filas = puntos de venta, columnas = cada fecha del rango.
+- Elige la **métrica** (Venta / Cantidad / Transacciones) y el **rango de fechas**.
+- **TOTAL** (columna) = suma de todos los días por PV. **TOTAL GENERAL** (fila) = suma de todos los PV por día.
+- El gráfico de abajo muestra la **evolución diaria** de cada punto de venta.
+""")
 
 if 'fecha' in df.columns:
     dfd = df.copy()

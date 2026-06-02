@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from utils.database import is_configured, fetch_ventas, fetch_periodos
 from utils.charts import summary_table, fmt_currency
 from utils.ui import (DARK_CSS, dark_chart, kpi_html, section_title, page_header,
-                      filter_title, styled_table, minimal_sidebar, period_pills, load_periods,
+                      filter_title, styled_table, explain, minimal_sidebar, period_pills, load_periods,
                       CHART_COLORS, TEAL)
 
 st.set_page_config(page_title='Canal de Ventas · ABAD', page_icon='🏪',
@@ -82,6 +82,13 @@ with c2: st.markdown(kpi_html(f'{margen:.2f}%','📈 Margen %',val_color='#4DB6A
 with c3: st.markdown(kpi_html(f'{uds:,.0f}','📦 Unidades',val_color='#80DEEA'), unsafe_allow_html=True)
 with c4: st.markdown(kpi_html(str(n_can),'🏪 Canales Activos',val_color='#FFCC80'), unsafe_allow_html=True)
 
+explain("""
+- **💰 Ventas Totales** — `valor_subtotal` sumado (venta neta) de los canales filtrados.
+- **📈 Margen %** — `(Ventas − Costo) ÷ Ventas × 100`.
+- **📦 Unidades** — `cantidad` total vendida.
+- **🏪 Canales Activos** — Número de canales distintos con ventas en el período/filtro.
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 
 # ── Gráficos ──────────────────────────────────────────────────────────────────
@@ -111,17 +118,30 @@ with col_r:
     fig2.update_layout(showlegend=True,legend=dict(orientation='v',font=dict(size=9,color='white')))
     st.plotly_chart(dark_chart(fig2,400),use_container_width=True)
 
+explain("""
+- **Ventas por Canal** (izquierda) — Venta total de cada canal; **el color = margen %** (azul bajo → verde alto).
+- **Participación** (derecha) — % que cada canal aporta a la venta total: `Venta canal ÷ Venta total × 100`.
+""")
+
 # ── Tendencia mensual si hay varios períodos ──────────────────────────────────
 if len(sels)>1 and 'periodo' in df.columns:
     st.markdown('<br>', unsafe_allow_html=True)
     st.markdown(section_title('Tendencia Mensual por Canal'), unsafe_allow_html=True)
     trend = (df.groupby(['periodo','canal_ventas'])
                .agg(venta=('valor_subtotal','sum')).reset_index())
+    trend['venta_fmt'] = trend['venta'].apply(fmt_currency)
     fig_t = px.bar(trend,x='periodo',y='venta',color='canal_ventas',
-                   text='venta',color_discrete_sequence=CHART_COLORS,barmode='stack')
-    fig_t.update_traces(texttemplate='',textfont=dict(color='white'))
-    fig_t.update_layout(legend=dict(font=dict(color='white')))
-    st.plotly_chart(dark_chart(fig_t,380),use_container_width=True)
+                   text='venta_fmt',color_discrete_sequence=CHART_COLORS,barmode='stack')
+    fig_t.update_traces(texttemplate='%{text}',textposition='inside',
+                        insidetextanchor='middle',textfont=dict(color='white',size=11),
+                        hovertemplate='<b>%{fullData.name}</b><br>%{x}<br>Venta: %{text}<extra></extra>')
+    fig_t.update_layout(legend=dict(font=dict(color='white')),uniformtext_minsize=8,
+                        uniformtext_mode='hide')
+    st.plotly_chart(dark_chart(fig_t,400,hide_money_axis='y'),use_container_width=True)
+    explain("""
+**Tendencia Mensual por Canal** — Barras apiladas: cada color es un canal y la altura
+total es la venta del mes. Permite ver cómo evoluciona el aporte de cada canal mes a mes.
+""")
 
 st.markdown('<br>', unsafe_allow_html=True)
 st.markdown(section_title('Detalle Canal × Centro de Operación'), unsafe_allow_html=True)
@@ -135,12 +155,22 @@ disp = disp.rename(columns={'canal_ventas':'Canal','co':'CO','desc_co':'Centro O
                              'venta':'Ventas','costo':'Costo','cantidad':'Cantidad',
                              'margen_%':'Margen','participacion':'Part %'})
 styled_table(disp, max_height=420)
+explain("""
+**Detalle Canal × Centro de Operación** — Cruce de cada canal con cada CO:
+- **Ventas / Costo** — sumas de `valor_subtotal` y `costo_promedio_total`.
+- **Margen** — `(Ventas − Costo) ÷ Ventas × 100`.
+- **Part %** — participación de esa combinación canal-CO sobre la venta total.
+""")
 
 st.markdown('---')
 exp = summary_table(canal,money_cols=['venta','costo'],pct_cols=['margen_%','participacion'])
 exp = exp.rename(columns={'canal_ventas':'Canal','venta':'Ventas','costo':'Costo','cantidad':'Cantidad',
                            'transacciones':'Trans.','margen_%':'Margen','participacion':'Part %'})
 styled_table(exp)
+explain("""
+**Resumen por Canal** — Totales consolidados de cada canal: Ventas, Costo, Cantidad,
+Trans. (líneas de factura), Margen `(Ventas−Costo)÷Ventas` y Part % sobre el total.
+""")
 st.download_button('⬇️ Descargar CSV',canal.to_csv(index=False).encode('utf-8'),
                    f'canal_ventas_{label.replace(" ","_")}.csv','text/csv')
 

@@ -6,7 +6,7 @@ from utils.database import (is_configured, fetch_ventas, fetch_periodos,
                               fetch_presupuestos, upsert_presupuestos)
 from utils.charts import summary_table, fmt_currency, fmt_int_co
 from utils.ui import (DARK_CSS, dark_chart, kpi_html, section_title, page_header,
-                      filter_title, styled_table, minimal_sidebar, period_pills, load_periods,
+                      filter_title, styled_table, explain, minimal_sidebar, period_pills, load_periods,
                       CHART_COLORS, CARD2)
 
 st.set_page_config(page_title='Análisis Financiero · ABAD', page_icon='💼',
@@ -78,11 +78,27 @@ with c6: st.markdown(kpi_html(fmt_currency(descuentos), '🎁 Descuentos',    va
 with c7: st.markdown(kpi_html(fmt_currency(abs(val_dev)), '↩️ Devoluciones', val_color='#FFAB91', bg=CARD2), unsafe_allow_html=True)
 with c8: st.markdown(kpi_html(f'{pct_dev:.2f}% · {n_dev} fact.', '% Devol s/Venta', val_color='#FF8A65', bg=CARD2), unsafe_allow_html=True)
 
+explain("""
+**Indicadores financieros del período:**
+- **💰 Venta Neta** — `valor_subtotal` (antes de impuestos). **🏭 Costo** está incluido en el cálculo de utilidad.
+- **📈 Utilidad Bruta** — `Venta − Costo`. **📊 Margen Bruto** — `Utilidad ÷ Venta × 100`.
+- **🎫 Ticket Promedio** — `Venta ÷ Nº facturas` (`nro_documento` únicos): valor medio por factura.
+- **🧾 Impuestos** — `valor_impuestos` (IVA, IBUA, ICUI). **🎁 Descuentos** — `valor_descuentos`.
+- **↩️ Devoluciones** — líneas cuyo `desc_motivo` contiene "devolución" o "anulación".
+- **% Devol s/Venta** — `Devoluciones ÷ Venta × 100` + nº de facturas afectadas.
+""")
+
 # ══════════════════════════════════════════════════════════════════════════════
 #   2. COMPARATIVO PERÍODO A PERÍODO
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown('---')
 st.markdown(section_title('📅 Comparativo Período a Período'), unsafe_allow_html=True)
+explain("""
+Compara cada mes contra el anterior:
+- **Δ Venta** y **Δ Utilidad** — variación % respecto al mes previo (`(actual − anterior) ÷ anterior`).
+- **Ticket Prom** — `Venta ÷ Facturas` del mes.
+La barra azul es la venta y la línea naranja la utilidad bruta del gráfico inferior.
+""")
 
 if 'mes' in df.columns and 'anio' in df.columns:
     MONTH_ORDER = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
@@ -141,6 +157,13 @@ if 'mes' in df.columns and 'anio' in df.columns:
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown('---')
 st.markdown(section_title('🎯 Presupuesto vs Real'), unsafe_allow_html=True)
+explain("""
+Defines manualmente la **meta de venta y utilidad** por mes (botón ✏️ *Editar presupuesto*).
+- **Cumpl. Venta %** — `Venta Real ÷ Venta Meta × 100`. **Cumpl. Utilidad %** — igual con utilidad.
+- **Δ vs Meta** — diferencia en pesos (positivo = superó la meta, negativo = por debajo).
+- Semáforo: **verde** ≥100%, **amarillo** 90-99%, **rojo** <90%.
+La línea punteada del gráfico marca el 100% (meta cumplida).
+""")
 
 # Cargar metas existentes
 metas = fetch_presupuestos()  # {(mes, anio): {venta_meta, util_meta}}
@@ -292,6 +315,13 @@ if comp_meta is not None and not comp_meta.empty:
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown('---')
 st.markdown(section_title('🎯 Análisis ABC / Pareto (concentración 80/20)'), unsafe_allow_html=True)
+explain("""
+Mide **qué tan concentrada** está la venta (o utilidad) en pocos clientes/productos/canales.
+- Se ordena de mayor a menor y se acumula el %. **% Acum** = suma acumulada.
+- **Clase A** (0-80% del valor) — los críticos. **B** (80-95%). **C** (95-100%) — la cola.
+- El KPI *"N de M = 80%"* indica **cuántos elementos generan el 80%**: si son pocos, hay
+**riesgo de dependencia**. La curva naranja cruza la línea del 80% justo en el límite A/B.
+""")
 
 DIM_OPTS = {
     'Cliente':         'razon_social',
@@ -377,6 +407,11 @@ if total_p != 0:
 if 'valor_impuestos' in df.columns and df['valor_impuestos'].sum() > 0:
     st.markdown('---')
     st.markdown(section_title('🧾 Análisis de Impuestos por Canal'), unsafe_allow_html=True)
+    explain("""
+Impuestos (`valor_impuestos`: IVA + IBUA + ICUI) sumados por canal.
+**Tasa Efectiva %** — `Impuestos ÷ Venta × 100`. El color de la barra indica la tasa
+(azul = baja, rojo = alta). Útil para ver qué canales cargan más impuesto.
+""")
 
     imp = (df.groupby('canal_ventas')
              .agg(venta     =('valor_subtotal', 'sum'),
@@ -413,6 +448,12 @@ if 'valor_impuestos' in df.columns and df['valor_impuestos'].sum() > 0:
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown('---')
 st.markdown(section_title('↩️ Devoluciones y Anulaciones'), unsafe_allow_html=True)
+explain("""
+Líneas cuyo `desc_motivo` contiene **"devolución"** o **"anulación"** (devoluciones POS,
+anulaciones de factura electrónica, etc.).
+- **Valor** — `valor_subtotal` de esas líneas. **% s/Venta** — `|Valor| ÷ Venta total × 100`.
+- El gráfico muestra en qué **canales** se concentran las devoluciones (control operacional).
+""")
 
 if 'desc_motivo' in df.columns and dev_mask.any():
     dev = df.loc[dev_mask].copy()
@@ -451,6 +492,11 @@ else:
 if 'nro_documento' in df.columns:
     st.markdown('---')
     st.markdown(section_title('🎫 Ticket Promedio'), unsafe_allow_html=True)
+    explain("""
+**Ticket Promedio** = `Venta ÷ Nº de facturas` (`nro_documento` únicos). Es el valor medio
+que gasta un cliente por factura. Se muestra **por canal** y **por punto de venta** para
+comparar dónde se hacen las compras más grandes.
+""")
 
     col_l, col_r = st.columns(2)
     with col_l:

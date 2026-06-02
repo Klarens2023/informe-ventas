@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from utils.database import is_configured, fetch_ventas, fetch_periodos
 from utils.charts import fmt_currency, fmt_int_co, summary_table, axis_money_co
 from utils.ui import (DARK_CSS, dark_chart, kpi_html, section_title, page_header,
-                      filter_title, styled_table, minimal_sidebar, period_pills, load_periods,
+                      filter_title, styled_table, explain, minimal_sidebar, period_pills, load_periods,
                       CHART_COLORS, TEAL, KPI_VAL, CARD, CARD2)
 
 st.set_page_config(
@@ -73,6 +73,18 @@ with c6: st.markdown(kpi_html(fmt_currency(descto), '🎁 Descuentos', val_color
 with c7: st.markdown(kpi_html(fmt_int_co(uds), '📦 Unidades', val_color='#80DEEA', bg=CARD2), unsafe_allow_html=True)
 with c8: st.markdown(kpi_html(f'{n_co} CO · {n_mes} mes{"es" if n_mes>1 else ""}', '🏢 Alcance', val_color='#FFCC80', bg=CARD2), unsafe_allow_html=True)
 
+explain("""
+**Indicadores principales del período seleccionado:**
+- **💰 Ventas Totales** — Suma de `valor_subtotal` (venta neta, antes de impuestos).
+- **📈 Margen Promedio** — `(Ventas − Costo) ÷ Ventas × 100`. Qué % de la venta queda como utilidad bruta.
+- **💵 Rentabilidad** — Suma de `rentabilidad_plata` = `Ventas − Costo` en pesos (utilidad bruta total).
+- **🔢 Transacciones** — Número de filas (líneas de factura) del período.
+- **🏭 Costo Total** — Suma de `costo_promedio_total` (costo de la mercancía vendida).
+- **🎁 Descuentos** — Suma de `valor_descuentos` aplicados.
+- **📦 Unidades** — Suma de `cantidad` vendida.
+- **🏢 Alcance** — Nº de Centros de Operación (CO) y meses incluidos en la vista.
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 
 # ── Canal de Ventas ───────────────────────────────────────────────────────────
@@ -101,6 +113,11 @@ with col_r:
     fig2.update_layout(showlegend=True,legend=dict(orientation='v',font=dict(size=9,color='white')))
     st.plotly_chart(dark_chart(fig2,400),use_container_width=True)
 
+explain("""
+- **Ventas por Canal** (izquierda) — Barras horizontales con la venta total de cada canal. **El color indica el margen %** del canal (azul = bajo, verde = alto), calculado como `(Ventas − Costo) ÷ Ventas`.
+- **Participación por Canal** (derecha) — Dona con el **% que cada canal aporta** a la venta total: `Venta del canal ÷ Venta total × 100`.
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 
 # ── Evolución mensual (si hay varios meses) ───────────────────────────────────
@@ -124,6 +141,12 @@ if len(sels) > 1 and 'mes' in df.columns:
                     tickfont=dict(color='#F57F17'),title='Rentabilidad $',titlefont=dict(color='#F57F17')),
         barmode='group',legend=dict(font=dict(color='white')))
     st.plotly_chart(dark_chart(fig_e,380),use_container_width=True)
+    explain("""
+**Evolución Mensual** (aparece al seleccionar varios meses):
+- **Barras azules** — Venta total de cada mes (`valor_subtotal`).
+- **Línea naranja** — Rentabilidad en pesos del mes (`Ventas − Costo`), en eje derecho.
+Permite ver la tendencia y comparar si la utilidad crece al mismo ritmo que la venta.
+""")
     st.markdown('<br>', unsafe_allow_html=True)
 
 # ── Vendedores + Familia ──────────────────────────────────────────────────────
@@ -153,6 +176,11 @@ with col_b:
     else:
         st.info('Sin datos de familia. Carga la tabla ITEM en 📥 Importar Data.')
 
+explain("""
+- **Top 15 Vendedores** (izquierda) — Los 15 vendedores con mayor venta total (`valor_subtotal` sumado por `nombre_vendedor`).
+- **Ventas por Familia** (derecha) — Venta por familia de producto. **El color indica el margen %** de cada familia. La familia viene del cruce con la tabla ITEM por `referencia`.
+""")
+
 st.markdown('---')
 st.markdown(section_title('Resumen por Centro de Operación'), unsafe_allow_html=True)
 co_df = (df.groupby(['co','desc_co'])
@@ -166,6 +194,15 @@ disp = summary_table(co_df,money_cols=['venta','costo'],pct_cols=['margen_%','pa
 disp = disp.rename(columns={'co':'CO','desc_co':'Centro de Operación','venta':'Ventas','costo':'Costo',
                              'cantidad':'Cantidad','transacciones':'Trans.','margen_%':'Margen','participacion':'Part %'})
 styled_table(disp)
+explain("""
+**Resumen por Centro de Operación (CO)** — cada fila es un punto/centro:
+- **Ventas** — `valor_subtotal` sumado por CO.
+- **Costo** — `costo_promedio_total` sumado por CO.
+- **Cantidad** — unidades vendidas.
+- **Trans.** — número de líneas de factura.
+- **Margen** — `(Ventas − Costo) ÷ Ventas × 100`.
+- **Part %** — participación del CO en la venta total: `Venta CO ÷ Venta total × 100`.
+""")
 
 st.markdown(f"""<div style="text-align:center;color:#546E7A;font-size:.74rem;margin-top:20px;
 padding:10px;border-top:1px solid rgba(21,101,192,.13)">

@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from utils.database import is_configured, fetch_ventas, fetch_periodos
 from utils.charts import summary_table, fmt_currency, fmt_pct, fmt_int_co
 from utils.ui import (DARK_CSS, dark_chart, kpi_html, section_title, page_header,
-                      filter_title, styled_table, minimal_sidebar, period_pills, load_periods, CHART_COLORS)
+                      filter_title, styled_table, explain, minimal_sidebar, period_pills, load_periods, CHART_COLORS)
 
 st.set_page_config(page_title='Descuentos · ABAD', page_icon='🎁',
                    layout='wide', initial_sidebar_state='auto')
@@ -87,6 +87,14 @@ with c3: st.markdown(kpi_html(fmt_currency(venta),'💰 Venta Asociada',val_colo
 with c4: st.markdown(kpi_html(fmt_int_co(n_trans),'🔢 Transacciones',val_color='#80DEEA'), unsafe_allow_html=True)
 with c5: st.markdown(kpi_html(str(n_cli),'🏢 Clientes',val_color='#FFCC80'), unsafe_allow_html=True)
 
+explain("""
+- **🎁 Descuento Total** — `valor_descuentos` sumado.
+- **📉 % Dscto s/Venta** — `Descuento ÷ Venta × 100` (cuánto se descuenta en promedio).
+- **💰 Venta Asociada** — `valor_subtotal` de las líneas con descuento.
+- **🔢 Transacciones** y **🏢 Clientes** — nº de líneas y de clientes distintos con descuento.
+Los gráficos desglosan el descuento por **canal** y por **CO** (color = % de descuento).
+""")
+
 st.markdown('<br>', unsafe_allow_html=True)
 
 # ── Descuento por Canal y por CO ──────────────────────────────────────────────
@@ -139,6 +147,12 @@ ic_disp = ic_disp.rename(columns={'desc_item':'Ítem','razon_social':'Cliente',
                                   'dscto_pct_prom':'% Dscto Prom','dscto_%_real':'% Dscto Real',
                                   'cantidad':'Cant.'})
 styled_table(ic_disp, max_height=460)
+explain("""
+**Descuento por Ítem y Cliente** — Cada fila es un ítem comprado por un cliente con descuento:
+- **% Dscto Prom** — promedio del campo `dscto_promedio_pct` del POS.
+- **% Dscto Real** — recalculado: `Descuento ÷ Venta × 100`.
+Comparar ambos detecta diferencias entre el % registrado y el realmente aplicado.
+""")
 st.download_button('⬇️ Descargar Ítem×Cliente',
                    ic.to_csv(index=False).encode('utf-8'),
                    f'descuentos_item_cliente_{label.replace(" ","_")}.csv','text/csv',
@@ -254,6 +268,16 @@ else:
     with h3: st.markdown(kpi_html(fmt_int_co(h_fact), '🧾 Facturas', val_color='#80DEEA', bg='#2A1438'), unsafe_allow_html=True)
     with h4: st.markdown(kpi_html(fmt_int_co(h_uds), '📦 Unidades', val_color='#FFCC80', bg='#2A1438'), unsafe_allow_html=True)
     with h5: st.markdown(kpi_html(fmt_currency(h_extra), f'⚠️ Dscto extra ({n_doble} fact.)', val_color='#EF9A9A', bg='#2A1438'), unsafe_allow_html=True)
+
+    explain("""
+**HAPPY** = facturas que cumplen **4 condiciones**: (1) **miércoles**, (2) puntos de venta **CO 002-006**,
+(3) aprobadas entre **2:00 y 3:00 pm** (hora real del archivo "Ventas con hora", cruzada por `Nro documento`),
+y (4) **descuento ≥ 20%**.
+- **😊 Descuento Happy (20%)** — solo el 20% que corresponde a Happy: `valor_bruto × 20%`.
+- **💰 Venta Happy** — venta de esas facturas. **🧾 Facturas** / **📦 Unidades** — totales.
+- **⚠️ Dscto extra** — descuento aplicado **por encima** del 20% (doble descuento por error), y cuántas facturas lo tuvieron.
+La tabla **PV × Miércoles** cruza cada punto de venta con cada fecha (Cantidad + Venta).
+""")
 
     # ── Pivote: filas = PV, columnas = fechas (miércoles), valores = Cantidad + Venta ──
     st.markdown('<br>', unsafe_allow_html=True)
