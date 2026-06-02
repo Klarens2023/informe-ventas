@@ -209,39 +209,37 @@ with m4: st.markdown(kpi_html(str(v_ncli), '🏢 Clientes', val_color='#FFCC80',
 
 st.markdown('<br>', unsafe_allow_html=True)
 
-dcol1, dcol2 = st.columns(2)
+# Tablas a todo el ancho (apiladas) — los nombres de cliente/ítem son largos
+st.markdown(section_title('Clientes del Vendedor'), unsafe_allow_html=True)
+cli = (dv.groupby('razon_social')
+         .agg(venta=('valor_subtotal','sum'),costo=('costo_promedio_total','sum'),
+              cantidad=('cantidad','sum'),descuento=('valor_descuentos','sum'))
+         .reset_index())
+cli['margen_%']      = ((cli['venta']-cli['costo'])/cli['venta']*100).round(2)
+cli['participacion'] = (cli['venta']/cli['venta'].sum()*100).round(2)
+cli = cli.sort_values('venta', ascending=False)
+cli_disp = summary_table(cli, money_cols=['venta','costo','descuento'],
+                         pct_cols=['margen_%','participacion'])
+cli_disp = cli_disp.rename(columns={'razon_social':'Cliente','venta':'Ventas','costo':'Costo',
+                                    'cantidad':'Cant.','descuento':'Descuento',
+                                    'margen_%':'Margen','participacion':'Part %'})
+styled_table(cli_disp, max_height=420)
 
-with dcol1:
-    st.markdown(section_title('Clientes del Vendedor'), unsafe_allow_html=True)
-    cli = (dv.groupby('razon_social')
-             .agg(venta=('valor_subtotal','sum'),costo=('costo_promedio_total','sum'),
-                  cantidad=('cantidad','sum'),descuento=('valor_descuentos','sum'))
-             .reset_index())
-    cli['margen_%']      = ((cli['venta']-cli['costo'])/cli['venta']*100).round(2)
-    cli['participacion'] = (cli['venta']/cli['venta'].sum()*100).round(2)
-    cli = cli.sort_values('venta', ascending=False)
-    cli_disp = summary_table(cli, money_cols=['venta','costo','descuento'],
-                             pct_cols=['margen_%','participacion'])
-    cli_disp = cli_disp.rename(columns={'razon_social':'Cliente','venta':'Ventas','costo':'Costo',
-                                        'cantidad':'Cant.','descuento':'Descuento',
-                                        'margen_%':'Margen','participacion':'Part %'})
-    styled_table(cli_disp, max_height=420)
-
-with dcol2:
-    st.markdown(section_title('Ítems Vendidos'), unsafe_allow_html=True)
-    itm = (dv.groupby('desc_item')
-             .agg(venta=('valor_subtotal','sum'),costo=('costo_promedio_total','sum'),
-                  cantidad=('cantidad','sum'),descuento=('valor_descuentos','sum'))
-             .reset_index())
-    itm['margen_%']      = ((itm['venta']-itm['costo'])/itm['venta']*100).round(2)
-    itm['participacion'] = (itm['venta']/itm['venta'].sum()*100).round(2)
-    itm = itm.sort_values('venta', ascending=False)
-    itm_disp = summary_table(itm, money_cols=['venta','costo','descuento'],
-                             pct_cols=['margen_%','participacion'])
-    itm_disp = itm_disp.rename(columns={'desc_item':'Ítem','venta':'Ventas','costo':'Costo',
-                                        'cantidad':'Cant.','descuento':'Descuento',
-                                        'margen_%':'Margen','participacion':'Part %'})
-    styled_table(itm_disp, max_height=420)
+st.markdown('<br>', unsafe_allow_html=True)
+st.markdown(section_title('Ítems Vendidos'), unsafe_allow_html=True)
+itm = (dv.groupby('desc_item')
+         .agg(venta=('valor_subtotal','sum'),costo=('costo_promedio_total','sum'),
+              cantidad=('cantidad','sum'),descuento=('valor_descuentos','sum'))
+         .reset_index())
+itm['margen_%']      = ((itm['venta']-itm['costo'])/itm['venta']*100).round(2)
+itm['participacion'] = (itm['venta']/itm['venta'].sum()*100).round(2)
+itm = itm.sort_values('venta', ascending=False)
+itm_disp = summary_table(itm, money_cols=['venta','costo','descuento'],
+                         pct_cols=['margen_%','participacion'])
+itm_disp = itm_disp.rename(columns={'desc_item':'Ítem','venta':'Ventas','costo':'Costo',
+                                    'cantidad':'Cant.','descuento':'Descuento',
+                                    'margen_%':'Margen','participacion':'Part %'})
+styled_table(itm_disp, max_height=420)
 
 # Detalle Cliente × Ítem (jerárquico como el pivote de Excel)
 st.markdown('<br>', unsafe_allow_html=True)

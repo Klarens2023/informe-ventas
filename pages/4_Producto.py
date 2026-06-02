@@ -180,33 +180,32 @@ if fam_opts:
 
     st.markdown('<br>', unsafe_allow_html=True)
 
-    dcol1, dcol2 = st.columns(2)
-    with dcol1:
-        st.markdown(section_title('Clientes que compraron esta familia'), unsafe_allow_html=True)
-        cli = (dfam.groupby('razon_social')
-                 .agg(venta=('valor_subtotal','sum'),costo=('costo_promedio_total','sum'),
-                      cantidad=('cantidad','sum'))
-                 .reset_index())
-        cli['margen_%']      = ((cli['venta']-cli['costo'])/cli['venta']*100).round(2)
-        cli['participacion'] = (cli['venta']/cli['venta'].sum()*100).round(2)
-        cli = cli.sort_values('venta', ascending=False)
-        cli_disp = summary_table(cli, money_cols=['venta','costo'], pct_cols=['margen_%','participacion'])
-        cli_disp = cli_disp.rename(columns={'razon_social':'Cliente','venta':'Ventas','costo':'Costo',
-                                            'cantidad':'Cant.','margen_%':'Margen','participacion':'Part %'})
-        styled_table(cli_disp, max_height=420)
+    # Tablas a todo el ancho (apiladas) — los nombres son largos
+    st.markdown(section_title('Clientes que compraron esta familia'), unsafe_allow_html=True)
+    cli = (dfam.groupby('razon_social')
+             .agg(venta=('valor_subtotal','sum'),costo=('costo_promedio_total','sum'),
+                  cantidad=('cantidad','sum'))
+             .reset_index())
+    cli['margen_%']      = ((cli['venta']-cli['costo'])/cli['venta']*100).round(2)
+    cli['participacion'] = (cli['venta']/cli['venta'].sum()*100).round(2)
+    cli = cli.sort_values('venta', ascending=False)
+    cli_disp = summary_table(cli, money_cols=['venta','costo'], pct_cols=['margen_%','participacion'])
+    cli_disp = cli_disp.rename(columns={'razon_social':'Cliente','venta':'Ventas','costo':'Costo',
+                                        'cantidad':'Cant.','margen_%':'Margen','participacion':'Part %'})
+    styled_table(cli_disp, max_height=420)
 
-    with dcol2:
-        st.markdown(section_title('Productos de esta familia'), unsafe_allow_html=True)
-        prods = (dfam.groupby('desc_item')
-                   .agg(venta=('valor_subtotal','sum'),costo=('costo_promedio_total','sum'),
-                        cantidad=('cantidad','sum'))
-                   .reset_index())
-        prods['margen_%'] = ((prods['venta']-prods['costo'])/prods['venta']*100).round(2)
-        prods = prods.sort_values('venta', ascending=False)
-        prods_disp = summary_table(prods, money_cols=['venta','costo'], pct_cols=['margen_%'])
-        prods_disp = prods_disp.rename(columns={'desc_item':'Producto','venta':'Ventas','costo':'Costo',
-                                                'cantidad':'Cant.','margen_%':'Margen'})
-        styled_table(prods_disp, max_height=420)
+    st.markdown('<br>', unsafe_allow_html=True)
+    st.markdown(section_title('Productos de esta familia'), unsafe_allow_html=True)
+    prods = (dfam.groupby('desc_item')
+               .agg(venta=('valor_subtotal','sum'),costo=('costo_promedio_total','sum'),
+                    cantidad=('cantidad','sum'))
+               .reset_index())
+    prods['margen_%'] = ((prods['venta']-prods['costo'])/prods['venta']*100).round(2)
+    prods = prods.sort_values('venta', ascending=False)
+    prods_disp = summary_table(prods, money_cols=['venta','costo'], pct_cols=['margen_%'])
+    prods_disp = prods_disp.rename(columns={'desc_item':'Producto','venta':'Ventas','costo':'Costo',
+                                            'cantidad':'Cant.','margen_%':'Margen'})
+    styled_table(prods_disp, max_height=420)
 
     # Detalle Cliente × Producto
     st.markdown('<br>', unsafe_allow_html=True)
