@@ -12,7 +12,7 @@ st.set_page_config(page_title='Puntos de Venta · ABAD', page_icon='🏬',
 st.markdown(DARK_CSS, unsafe_allow_html=True)
 if not is_configured():
     minimal_sidebar()
-    st.error('Configura Supabase en 📥 Importar Data.'); st.stop()
+    st.error('Sin conexión. Ve a 📥 Importar Data para configurar.'); st.stop()
 
 minimal_sidebar()
 

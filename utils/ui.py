@@ -943,7 +943,7 @@ def period_pills(fetch_periodos_fn) -> tuple:
         )
     with col_reload:
         st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
-        if st.button('🔄', key='_reload_periodos', help='Recargar períodos desde Supabase'):
+        if st.button('🔄', key='_reload_periodos', help='Recargar períodos'):
             st.session_state.pop('abad_periodos', None)
             st.rerun()
 

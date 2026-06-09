@@ -14,7 +14,7 @@ st.set_page_config(page_title='Análisis Financiero · ABAD', page_icon='💼',
 st.markdown(DARK_CSS, unsafe_allow_html=True)
 if not is_configured():
     minimal_sidebar()
-    st.error('Configura Supabase en 📥 Importar Data.'); st.stop()
+    st.error('Sin conexión. Ve a 📥 Importar Data para configurar.'); st.stop()
 
 minimal_sidebar()
 
@@ -171,7 +171,7 @@ metas = fetch_presupuestos()  # {(mes, anio): {venta_meta, util_meta}}
 # Editor en un expander para no estorbar
 with st.expander('✏️ Editar presupuesto mensual (metas)', expanded=False):
     st.caption('Define las metas de **venta** y **utilidad bruta** por período. '
-               'Se guardan en Supabase y se reutilizan en cada análisis. '
+               'Se guardan y se reutilizan en cada análisis. '
                'Solo verás los períodos disponibles en la base.')
 
     todos_per = fetch_periodos()

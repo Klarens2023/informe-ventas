@@ -16,7 +16,7 @@ st.markdown(DARK_CSS, unsafe_allow_html=True)
 
 if not is_configured():
     minimal_sidebar()
-    st.error('⚠️ Sin conexión a Supabase. Ve a **📥 Importar Data** para configurar.')
+    st.error('⚠️ Sin conexión. Ve a **📥 Importar Data** para configurar.')
     st.stop()
 
 minimal_sidebar()

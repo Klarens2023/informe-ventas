@@ -18,8 +18,8 @@ def _cred_ok():
     return is_configured()
 
 
-# ── 1. Configuración de la base de datos (Neon / Postgres) ─────────────────────
-with st.expander('⚙️ Configuración de la base de datos', expanded=not _cred_ok()):
+# ── 1. Configuración de la conexión ────────────────────────────────────────────
+with st.expander('⚙️ Configuración de la conexión', expanded=not _cred_ok()):
     st.markdown(
         'Crea una base gratis en [neon.tech](https://neon.tech) → New Project. '
         'Copia la **Connection string** (Pooled connection) y pégala aquí. '
@@ -63,9 +63,9 @@ st.subheader('1. Actualizar tabla de Items (Referencia)')
 st.caption('Sube el Excel del informe para extraer la hoja ITEM. Solo necesitas hacerlo si cambiaron los ítems.')
 
 item_file = st.file_uploader('Excel con hoja ITEM', type=['xlsx', 'xls'], key='item_file')
-if item_file and st.button('🔄 Actualizar Items en BD'):
+if item_file and st.button('🔄 Actualizar Items'):
     if not _cred_ok():
-        st.error('Primero configura las credenciales de Supabase.')
+        st.error('Primero configura la conexión.')
     else:
         try:
             from utils.processor import read_items_from_excel
@@ -73,7 +73,7 @@ if item_file and st.button('🔄 Actualizar Items en BD'):
             items_df = read_items_from_excel(item_file)
             upsert_items(items_df)
             st.cache_data.clear()
-            st.success(f'✅ {len(items_df)} ítems actualizados en la base de datos.')
+            st.success(f'✅ {len(items_df)} ítems actualizados.')
         except Exception as e:
             st.error(f'Error: {e}')
 
@@ -86,16 +86,16 @@ st.caption('Sube el archivo "Ventas con hora" (cabecera de factura con la hora d
            'el HAPPY: miércoles 2:00–3:00 pm en los puntos de venta CO 002-006.')
 
 horas_file = st.file_uploader('Excel "Ventas con hora"', type=['xlsx', 'xls'], key='horas_file')
-if horas_file and st.button('🕒 Cargar horas a la BD'):
+if horas_file and st.button('🕒 Cargar horas'):
     if not _cred_ok():
-        st.error('Primero configura las credenciales de Supabase.')
+        st.error('Primero configura la conexión.')
     else:
         try:
             from utils.processor import read_horas_from_excel
             from utils.database import upsert_horas
             with st.spinner('Leyendo archivo de horas...'):
                 horas_df = read_horas_from_excel(horas_file)
-            prog = st.progress(0.0, text='Subiendo a Supabase...')
+            prog = st.progress(0.0, text='Guardando...')
             stats = upsert_horas(
                 horas_df,
                 progress_cb=lambda v: prog.progress(v, text=f'Subiendo... {v*100:.0f}%'),
@@ -193,15 +193,15 @@ if data_file:
         st.dataframe(dist, use_container_width=True, hide_index=True)
 
     st.divider()
-    st.subheader('3. Guardar en base de datos')
+    st.subheader('3. Guardar datos')
     st.warning(
         f'⚠️ Esto **eliminará y reemplazará** todos los datos de **{mes_det} {anio_det}** '
-        f'en la base de datos y cargará las {stats.get("filas_finales", 0):,} filas procesadas.'
+        f'y cargará las {stats.get("filas_finales", 0):,} filas procesadas.'
     )
 
-    if st.button(f'🚀 Importar {mes_det} {anio_det} a Supabase', type='primary'):
+    if st.button(f'🚀 Importar {mes_det} {anio_det}', type='primary'):
         if not _cred_ok():
-            st.error('Configura las credenciales de Supabase primero.')
+            st.error('Configura la conexión primero.')
         else:
             progress = st.progress(0.0, text='Importando...')
             try:
