@@ -14,33 +14,45 @@ page_header('📥 Importar y Procesar Data',
 
 def _cred_ok():
     load_dotenv()
-    return bool(os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_KEY'))
+    from utils.database import is_configured
+    return is_configured()
 
 
-# ── 1. Configuración Supabase ──────────────────────────────────────────────────
-with st.expander('⚙️ Configuración Supabase', expanded=not _cred_ok()):
+# ── 1. Configuración de la base de datos (Neon / Postgres) ─────────────────────
+with st.expander('⚙️ Configuración de la base de datos', expanded=not _cred_ok()):
     st.markdown(
-        'Crea una cuenta gratis en [supabase.com](https://supabase.com) → New Project → '
-        'Project Settings → API. Copia la **URL** y la clave **anon/public**.'
+        'Crea una base gratis en [neon.tech](https://neon.tech) → New Project. '
+        'Copia la **Connection string** (Pooled connection) y pégala aquí. '
+        'También funciona con cualquier Postgres (local o de otro proveedor).'
     )
-    su_url = st.text_input('URL del proyecto', placeholder='https://xxxx.supabase.co',
-                            value=os.getenv('SUPABASE_URL', ''))
-    su_key = st.text_input('Clave anon (pública)', type='password',
-                            value=os.getenv('SUPABASE_KEY', ''))
-    if st.button('💾 Guardar credenciales'):
-        if su_url and su_key:
-            from utils.database import save_credentials
-            save_credentials(su_url, su_key)
-            load_dotenv(override=True)
-            st.success('✅ Credenciales guardadas. Recarga la página.')
-            st.rerun()
-        else:
-            st.error('Ingresa URL y clave.')
+    db_url = st.text_input(
+        'Connection string (DATABASE_URL)',
+        placeholder='postgresql://user:password@ep-xxxx-pooler.region.aws.neon.tech/dbname?sslmode=require',
+        value=os.getenv('DATABASE_URL', ''),
+        type='password',
+    )
+    cbtn1, cbtn2 = st.columns([1, 1])
+    with cbtn1:
+        if st.button('💾 Guardar conexión'):
+            if db_url.strip():
+                from utils.database import save_credentials
+                save_credentials(db_url)
+                load_dotenv(override=True)
+                st.success('✅ Conexión guardada. Recarga la página.')
+                st.rerun()
+            else:
+                st.error('Ingresa la connection string.')
+    with cbtn2:
+        if st.button('🔌 Probar conexión'):
+            from utils.database import test_connection
+            ok, msg = test_connection()
+            (st.success if ok else st.error)(msg)
 
 
-# ── 2. Crear tablas en Supabase ────────────────────────────────────────────────
-with st.expander('🗄️ Crear tablas en Supabase (solo primera vez)'):
-    st.markdown('Copia el siguiente SQL y ejecútalo en el **SQL Editor** de tu proyecto Supabase:')
+# ── 2. Crear tablas (solo primera vez) ─────────────────────────────────────────
+with st.expander('🗄️ Crear tablas (solo primera vez)'):
+    st.markdown('Copia el siguiente SQL y ejecútalo en el **SQL Editor de Neon** '
+                '(o en `psql` si usas Postgres local):')
     sql = open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'setup_supabase.sql'), encoding='utf-8').read()
     st.code(sql, language='sql')
 

@@ -1,6 +1,7 @@
 -- ============================================================
--- ABAD · Informe de Ventas — Setup Supabase
--- Ejecutar en: Supabase → SQL Editor → New query → Run
+-- ABAD · Informe de Ventas — Esquema de base de datos
+-- Postgres estándar: funciona en Neon, Postgres local o cualquier proveedor.
+-- Ejecutar en: Neon → SQL Editor → Run   (o en psql)
 -- ============================================================
 
 -- Tabla principal de ventas
@@ -73,33 +74,8 @@ CREATE TABLE IF NOT EXISTS items_referencia (
     updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Índices para rendimiento
-CREATE INDEX IF NOT EXISTS idx_ventas_mes_anio ON ventas(mes, anio);
-CREATE INDEX IF NOT EXISTS idx_ventas_co       ON ventas(co);
-CREATE INDEX IF NOT EXISTS idx_ventas_canal    ON ventas(canal_ventas);
-CREATE INDEX IF NOT EXISTS idx_ventas_familia  ON ventas(familia);
-CREATE INDEX IF NOT EXISTS idx_ventas_fecha    ON ventas(fecha);
-
--- Habilitar RLS (Row Level Security)
-ALTER TABLE ventas           ENABLE ROW LEVEL SECURITY;
-ALTER TABLE items_referencia ENABLE ROW LEVEL SECURITY;
-
--- Políticas de acceso total (uso interno)
-DROP POLICY IF EXISTS allow_all_ventas ON ventas;
-CREATE POLICY allow_all_ventas
-    ON ventas FOR ALL
-    USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS allow_all_items ON items_referencia;
-CREATE POLICY allow_all_items
-    ON items_referencia FOR ALL
-    USING (true) WITH CHECK (true);
-
--- ============================================================
--- ⏰ TABLA factura_horas — hora de aprobación por factura
---    (segundo archivo "Ventas con hora"). Se cruza con ventas
---    por nro_documento para identificar el descuento HAPPY.
--- ============================================================
+-- Hora de aprobación por factura (segundo archivo "Ventas con hora").
+-- Se cruza con ventas por nro_documento para identificar el descuento HAPPY.
 CREATE TABLE IF NOT EXISTS factura_horas (
     nro_documento TEXT PRIMARY KEY,
     co            SMALLINT,
@@ -110,17 +86,8 @@ CREATE TABLE IF NOT EXISTS factura_horas (
     es_happy      BOOLEAN DEFAULT FALSE,
     updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_fh_happy ON factura_horas(es_happy);
-CREATE INDEX IF NOT EXISTS idx_fh_doc   ON factura_horas(nro_documento);
 
-ALTER TABLE factura_horas ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS allow_all_horas ON factura_horas;
-CREATE POLICY allow_all_horas ON factura_horas FOR ALL USING (true) WITH CHECK (true);
-
--- ============================================================
--- 🎯 TABLA presupuestos — metas mensuales editables manualmente
---    desde el módulo 💼 Financiero
--- ============================================================
+-- Metas mensuales editables desde el módulo 💼 Financiero
 CREATE TABLE IF NOT EXISTS presupuestos (
     mes          TEXT,
     anio         SMALLINT,
@@ -129,27 +96,17 @@ CREATE TABLE IF NOT EXISTS presupuestos (
     updated_at   TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (mes, anio)
 );
-ALTER TABLE presupuestos ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS allow_all_presupuestos ON presupuestos;
-CREATE POLICY allow_all_presupuestos ON presupuestos FOR ALL USING (true) WITH CHECK (true);
 
--- ============================================================
--- 🚀 FUNCIÓN RPC: get_periodos  (CRÍTICO para rendimiento)
--- Devuelve los meses/años únicos en una sola query SQL
--- (sin esto, la app escanea millones de filas)
--- ============================================================
-CREATE OR REPLACE FUNCTION get_periodos()
-RETURNS TABLE(mes TEXT, anio SMALLINT)
-LANGUAGE SQL STABLE AS $$
-    SELECT DISTINCT mes, anio
-    FROM ventas
-    ORDER BY anio, mes;
-$$;
-
--- Permitir que el rol anon/authenticated llame a la función
-GRANT EXECUTE ON FUNCTION get_periodos() TO anon, authenticated;
+-- Índices para rendimiento
+CREATE INDEX IF NOT EXISTS idx_ventas_mes_anio ON ventas(mes, anio);
+CREATE INDEX IF NOT EXISTS idx_ventas_co       ON ventas(co);
+CREATE INDEX IF NOT EXISTS idx_ventas_canal    ON ventas(canal_ventas);
+CREATE INDEX IF NOT EXISTS idx_ventas_familia  ON ventas(familia);
+CREATE INDEX IF NOT EXISTS idx_ventas_fecha    ON ventas(fecha);
+CREATE INDEX IF NOT EXISTS idx_fh_happy        ON factura_horas(es_happy);
+CREATE INDEX IF NOT EXISTS idx_fh_doc          ON factura_horas(nro_documento);
 
 -- Verificar que se crearon correctamente
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'public'
-  AND table_name IN ('ventas', 'items_referencia');
+  AND table_name IN ('ventas', 'items_referencia', 'factura_horas', 'presupuestos');
